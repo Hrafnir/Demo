@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enkle regler → komplekse mønstre (1D cellulær automat)</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #000000;
+      --muted: #000000;
+      --border: #000000;
+      --panel: #ffffff;
+      --shadow: none;
+      --radius: 14px;
+      --gap: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+
+    /* Ren svart/hvit – 100% kontrast (ingen gråtoner) */
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      font-family: var(--sans);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: var(--gap);
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      background: var(--panel);
+    }
+
+    header h1 {
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .panel {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px 0;
+      font-size: 15px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-size: 13px;
+      user-select: none;
+    }
+
+    input[type="number"], input[type="text"], select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: #000;
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #000;
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 2px solid var(--border);
+      background: #fff;
+      color: #000;
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: var(--sans);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .help {
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 10px;
+      border-top: 2px solid var(--border);
+      padding-top: 10px;
+    }
+
+    .kbd {
+      display: inline-block;
+      border: 2px solid #000;
+      border-radius: 8px;
+      padding: 0 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 18px;
+      vertical-align: middle;
+    }
+
+    .canvasWrap {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .meta div {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .mono {
+      font-family: var(--mono);
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Enkle regler → komplekse mønstre (1D cellulær automat)</h1>
+      <p>
+        Velg en regel (0–255), antall celler og rader. Hver rad beregnes kun fra naboene i raden over.
+        Klassikere: <span class="mono">30</span> (kaotisk), <span class="mono">90</span> (Sierpinski-ish), <span class="mono">110</span> (kompleks).
+      </p>
+    </header>
+
+    <section class="panel" aria-label="Kontroller">
+      <h2>Kontroller</h2>
+
+      <div class="row">
+        <label for="rule">Regel (0–255)</label>
+        <input id="rule" type="number" min="0" max="255" step="1" value="30" />
+      </div>
+
+      <div class="row" style="grid-template-columns: 1fr;">
+        <label for="ruleRange">Regel-skyver</label>
+        <input id="ruleRange" type="range" min="0" max="255" step="1" value="30" />
+      </div>
+
+      <div class="row">
+        <label for="cells">Celler (bredde)</label>
+        <input id="cells" type="number" min="32" max="600" step="1" value="241" />
+      </div>
+
+      <div class="row">
+        <label for="rows">Rader (høyde)</label>
+        <input id="rows" type="number" min="32" max="600" step="1" value="240" />
+      </div>
+
+      <div class="row">
+        <label for="cellSize">Pikselstørrelse</label>
+        <input id="cellSize" type="number" min="1" max="6" step="1" value="2" />
+      </div>
+
+      <div class="row">
+        <label for="seedMode">Starttilstand</label>
+        <select id="seedMode">
+          <option value="single">Én celle i midten</option>
+          <option value="random">Tilfeldig (seed)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="seed">Seed (for tilfeldig)</label>
+        <input id="seed" type="text" value="oslo-2026" />
+      </div>
+
+      <div class="row">
+        <label for="wrapEdges">Kantkobling (wrap)</label>
+        <select id="wrapEdges">
+          <option value="on">På (sirkel)</option>
+          <option value="off">Av (tomt utenfor)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="invert">Inverter farger</label>
+        <select id="invert">
+          <option value="off">Av</option>
+          <option value="on">På</option>
+        </select>
+      </div>
+
+      <div class="btns">
+        <button id="renderBtn" type="button">Render</button>
+        <button id="stepBtn" type="button">Steg</button>
+        <button id="playBtn" type="button">Spill</button>
+        <button id="clearBtn" type="button">Nullstill</button>
+        <button id="savePngBtn" type="button">Lagre PNG</button>
+      </div>
+
+      <div class="help">
+        <div><strong>Snarveier:</strong></div>
+        <div>
+          <span class="kbd">R</span> render,
+          <span class="kbd">S</span> steg,
+          <span class="kbd">Space</span> spill/pause,
+          <span class="kbd">C</span> nullstill,
+          <span class="kbd">P</span> lagre PNG
+        </div>
+        <div style="margin-top:8px;">
+          <strong>Tips:</strong> Prøv regel <span class="mono">90</span>, <span class="mono">30</span>, <span class="mono">110</span>.
+          Endre celler til f.eks. <span class="mono">301</span> for andre symmetrier.
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <div class="canvasWrap">
+        <canvas id="canvas" width="800" height="600" aria-label="Mønster"></canvas>
+      </div>
+
+      <div class="meta" aria-label="Status">
+        <div>
+          <div><strong>Status</strong></div>
+          <div id="status" class="mono" style="margin-top:6px;">Klar.</div>
+        </div>
+        <div>
+          <div><strong>Regeltabell</strong> (naboer → ny celle)</div>
+          <div id="ruleTable" class="mono" style="margin-top:6px;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const els = {
+        rule: document.getElementById("rule"),
+        ruleRange: document.getElementById("ruleRange"),
+        cells: document.getElementById("cells"),
+        rows: document.getElementById("rows"),
+        cellSize: document.getElementById("cellSize"),
+        seedMode: document.getElementById("seedMode"),
+        seed: document.getElementById("seed"),
+        wrapEdges: document.getElementById("wrapEdges"),
+        invert: document.getElementById("invert"),
+        renderBtn: document.getElementById("renderBtn"),
+        stepBtn: document.getElementById("stepBtn"),
+        playBtn: document.getElementById("playBtn"),
+        clearBtn: document.getElementById("clearBtn"),
+        savePngBtn: document.getElementById("savePngBtn"),
+        canvas: document.getElementById("canvas"),
+        status: document.getElementById("status"),
+        ruleTable: document.getElementById("ruleTable"),
+      };
+
+      const ctx = els.canvas.getContext("2d", { alpha: false });
+
+      // Enkel deterministic PRNG fra string seed (xorshift32 + hash)
+      function hashStringToUint32(str) {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+      function makePRNG(seedStr) {
+        let x = hashStringToUint32(seedStr) || 1;
+        return () => {
+          // xorshift32
+          x ^= x << 13; x >>>= 0;
+          x ^= x >> 17; x >>>= 0;
+          x ^= x << 5;  x >>>= 0;
+          return (x >>> 0) / 4294967296;
+        };
+      }
+
+      function clampInt(v, min, max, fallback) {
+        const n = Number.parseInt(v, 10);
+        if (Number.isFinite(n)) return Math.min(max, Math.max(min, n));
+        return fallback;
+      }
+
+      function getSettings() {
+        const rule = clampInt(els.rule.value, 0, 255, 30);
+        const cells = clampInt(els.cells.value, 32, 600, 241);
+        const rows = clampInt(els.rows.value, 32, 600, 240);
+        const cellSize = clampInt(els.cellSize.value, 1, 6, 2);
+        const seedMode = els.seedMode.value;
+        const seed = (els.seed.value || "").trim() || "seed";
+        const wrap = els.wrapEdges.value === "on";
+        const invert = els.invert.value === "on";
+        return { rule, cells, rows, cellSize, seedMode, seed, wrap, invert };
+      }
+
+      function setStatus(msg) {
+        els.status.textContent = msg;
+      }
+
+      function buildRuleMap(rule) {
+        // 8-bit mapping for neighborhoods 111..000
+        // index = (left<<2) | (mid<<1) | right
+        const map = new Array(8).fill(0);
+        for (let i = 0; i < 8; i++) {
+          map[i] = (rule >> i) & 1; // i = 0 -> 000, i = 7 -> 111
+        }
+        return map;
+      }
+
+      function renderRuleTable(ruleMap) {
+        const neighborhoods = ["111","110","101","100","011","010","001","000"];
+        const out = neighborhoods.map((nb) => {
+          const i = parseInt(nb, 2);
+          return `${nb}→${ruleMap[i]}`;
+        }).join("  ");
+        els.ruleTable.textContent = out;
+      }
+
+      function resizeCanvas(cells, rows, cellSize, invert) {
+        els.canvas.width = cells * cellSize;
+        els.canvas.height = rows * cellSize;
+
+        // bakgrunn
+        ctx.fillStyle = invert ? "#000000" : "#ffffff";
+        ctx.fillRect(0, 0, els.canvas.width, els.canvas.height);
+      }
+
+      function drawCell(x, y, cellSize, invert) {
+        ctx.fillStyle = invert ? "#f
